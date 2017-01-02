@@ -1,4 +1,4 @@
-webroot='http://music.melnikovsm.tk/' # MusicSync Server Root URL
+webroot='http://yourmusicsync.local/' # MusicSync Server Root URL
 destdir='music' # Download destination dir
 playlist_prefix='playlist' # prefix of playlist file
 deleteExcess=True
