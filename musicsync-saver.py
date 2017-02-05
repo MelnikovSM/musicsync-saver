@@ -1,8 +1,11 @@
 webroot='http://yourmusicsync.local/' # MusicSync Server Root URL
+token='' # access token for view protected MusicSync Server installations, get it from browser cookies
 destdir='music' # Download destination dir
-playlist_prefix='playlist' # prefix of playlist file
-genAlbums=True
-deleteExcess=True
+playlist_prefix='playlist' # prefix for playlists files names
+lyricsDir='lyrics' # lyrics files save dir
+genAlbums=True # generate playlist from albums
+deleteExcess=True # delete files in music dir, that not indexed by program
+saveLyrics=True # save audios lyrics if present
 # -*- coding: utf-8 -*-
 print('MusicSync Saver')
 import sys, os, json, urllib2, urllib,re,codecs
@@ -11,12 +14,13 @@ sys.setdefaultencoding('utf8')
 
 def getAudios(album=''):
 	try:
-			req = urllib2.Request(url=os.path.join(webroot, 'api/playlist'),data=urllib.urlencode({'album' : album}))
+			req = urllib2.Request(url=os.path.join(webroot, 'api/playlist'),data=urllib.urlencode({'token': token, 'album' : album}))
 			return json.loads(urllib2.urlopen(req).read())
 	except urllib2.HTTPError: return False 
 
 def getAlbums():
-	try: return json.loads(urllib2.urlopen(os.path.join(webroot, 'api/albums')).read())
+	try: 
+		return json.loads(urllib2.urlopen(urllib2.Request(url=os.path.join(webroot, 'api/albums'),data=urllib.urlencode({'token': token}))).read())
 	except urllib2.HTTPError: return False
 
 def diff(a, b):
@@ -30,9 +34,20 @@ if not os.path.exists(destdir):
 
 print('Loading audios list..')
 audios=getAudios()
+if audios==False:
+	print('Fatal: unable to connect')
+	raise NameError, 'See above'
 
 flist=[f for f in os.listdir(destdir) if os.path.isfile(os.path.join(destdir, f))]
 rlist=[]
+
+if saveLyrics==True:
+	lyricsDir=os.path.join(destdir, lyricsDir) # auto generate absolute path for lyrics dir
+	if not os.path.exists(lyricsDir):
+		print('Notice: Lyrics dir is not exists, attempting to create..')
+		os.makedirs(lyricsDir)
+	fllist=[f for f in os.listdir(lyricsDir) if os.path.isfile(os.path.join(lyricsDir, f))]
+	rllist=[]
 
 print('Starting '+str(len(audios))+' audios download..')
 la=len(audios)
@@ -75,10 +90,24 @@ for audio in range(len(audios)):
 		aeac+=1
 		print('Already exists.')
 		rlist.append("%s.mp3" % (fname))
+	if saveLyrics==True:
+		lyr=0
+		try: lyr=audios[audio]['lyrics']
+		except KeyError: pass
+		if lyr<>0 and lyr<>'':
+			if not os.path.exists(lyricsDir+fname+'.txt'):
+				lf=codecs.open(os.path.join(lyricsDir, "%s.txt" % (fname)), 'w', 'utf-8')
+				lf.write(lyr)
+				lf.close()
+				rllist.append("%s.txt" % (fname))
+			rllist.append("%s.txt" % (fname))
 fp.close()
 rlist.append(playlist_prefix+'.m3u8')
 rlist.append(playlist_prefix+'_deprecated.m3u8')
 print('Download complete!')
+if saveLyrics==True:
+	for f in diff(fllist, rllist):
+		os.remove(os.path.join(lyricsDir,f))
 
 if genAlbums==True:
 	print('Generating playlists from your web albums..')
