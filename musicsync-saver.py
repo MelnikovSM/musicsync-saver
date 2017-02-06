@@ -76,11 +76,14 @@ for audio in range(len(audios)):
 	if os.path.isfile(filepath)==False:
 		try:
 			try:
-				urllib.urlretrieve(os.path.join(webroot, 'getAudio/', audios[audio]['filename']), filepath)
+				req = urllib2.Request(url=os.path.join(webroot, 'getAudio'),data=urllib.urlencode({'token': token, 'id' : audios[audio]['filename']}))
+				content = urllib2.urlopen(req).read()
+				if content<>'':
+					with open(filepath,'wb') as output: output.write(content)
 				rlist.append("%s.mp3" % (fname))
 				sadc+=1
 				print('Complete')
-			except IndexError as e:
+			except urllib2.HTTPError:
 				print('Download unavailable')
 				dnac+=1
 		except:
